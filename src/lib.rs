@@ -8,12 +8,12 @@ extern crate serde_derive;
 #[cfg(test)]
 mod tests;
 
-use kv_crud_core::{Create, Entity, Read, Update};
+use kv_crud_core::{Create, Entity, Read, Update, ReadWithPaginationAndSort};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 #[derive(Debug, Fail)]
-pub enum SqliteStorageError {
+pub enum Error {
     #[fail(display = "Value not found for key {}", _0)]
     NotFound(String),
 
@@ -27,15 +27,15 @@ pub enum SqliteStorageError {
     UnknownError,
 }
 
-fn wrap_sqlite_error(sqlite_error: sqlite::Error) -> SqliteStorageError {
-    SqliteStorageError::SqliteError(sqlite_error)
+fn wrap_sqlite_error(sqlite_error: sqlite::Error) -> Error {
+    Error::SqliteError(sqlite_error)
 }
 
-fn wrap_serde_error(serde_error: serde_json::Error) -> SqliteStorageError {
-    SqliteStorageError::FormattingError(serde_error)
+fn wrap_serde_error(serde_error: serde_json::Error) -> Error {
+    Error::FormattingError(serde_error)
 }
 
-type Result<T> = std::result::Result<T, SqliteStorageError>;
+type Result<T> = std::result::Result<T, Error>;
 
 pub struct SqliteStorage {
     connection: sqlite::Connection,
@@ -58,7 +58,7 @@ where
     I: ToString,
     E: Entity<I> + Serialize,
 {
-    type Error = SqliteStorageError;
+    type Error = Error;
 
     fn save(&mut self, entity: &E) -> Result<()> {
         let mut statement = self
@@ -84,7 +84,7 @@ where
     I: ToString,
     E: Entity<I> + DeserializeOwned,
 {
-    type Error = SqliteStorageError;
+    type Error = Error;
 
     fn find_by_id(&self, id: &I) -> Result<E> {
         let mut statement = self
@@ -100,7 +100,7 @@ where
                 let serialized: String = statement.read(0).map_err(wrap_sqlite_error)?;
                 Ok(serde_json::from_str(&serialized).map_err(wrap_serde_error)?)
             }
-            sqlite::State::Done => Err(SqliteStorageError::NotFound(key.to_owned())),
+            sqlite::State::Done => Err(Error::NotFound(key.to_owned())),
         }
     }
 }
@@ -110,7 +110,7 @@ where
     I: ToString,
     E: Entity<I> + Serialize,
 {
-    type Error = SqliteStorageError;
+    type Error = Error;
 
     fn update(&mut self, entity: &E) -> Result<()> {
         self.save(entity)

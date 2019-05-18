@@ -37,7 +37,7 @@ fn should_result_in_an_error_when_searching_for_unset_key() {
 
     // then
     match result {
-        Err(SqliteStorageError::NotFound(id)) => assert_eq!("42", id),
+        Err(Error::NotFound(id)) => assert_eq!("42", id),
         _ => assert!(false, "Invalid result!"),
     };
 }
